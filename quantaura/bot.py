@@ -2,7 +2,7 @@
 
 Commands:
   /start, /help        — usage
-  /scan [stocks|forex|crypto|all]  — scan the universe, push gated signals
+  /scan [stocks|forex|crypto|iran|all]  — scan the universe, push gated signals
   /signal SYMBOL       — analyse one symbol now (e.g. /signal AAPL,
                          /signal EURUSD=X, /signal BTC/USDT)
   /pairs               — scan the cointegration pairs
@@ -94,7 +94,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "published if the strategy has a measured edge on that instrument's "
         "own history.\n\n"
         "*Commands*\n"
-        "• `/scan [stocks|forex|crypto|all]` — scan & push gated signals\n"
+        "• `/scan [stocks|forex|crypto|iran|all]` — scan & push gated signals\n"
         "• `/signal SYMBOL` — analyse one symbol now\n"
         "• `/pairs` — scan cointegration pairs\n"
         "• `/factor` — scan the cross-sectional momentum factor\n"
@@ -190,9 +190,9 @@ async def cmd_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     arg = (context.args[0].lower() if context.args else "all")
     classes = None if arg in ("all", "") else [arg]
-    if classes and arg not in ("stocks", "forex", "crypto"):
+    if classes and arg not in ("stocks", "forex", "crypto", "iran"):
         await update.message.reply_text(
-            "Usage: /scan [stocks|forex|crypto|all]"
+            "Usage: /scan [stocks|forex|crypto|iran|all]"
         )
         return
 

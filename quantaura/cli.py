@@ -158,7 +158,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p_scan = sub.add_parser("scan", help="scan the universe")
     p_scan.add_argument("--class", dest="cls", default="all",
-                        choices=["all", "stocks", "forex", "crypto"])
+                        choices=["all", "stocks", "forex", "crypto", "iran"])
 
     p_sig = sub.add_parser("signal", help="analyse one symbol")
     p_sig.add_argument("symbol")
