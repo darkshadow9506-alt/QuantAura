@@ -179,6 +179,17 @@ exposure, risk by asset class, and warnings when the book exceeds the risk
 budget, over-concentrates in one class, or becomes one-directional. This
 is the "position management / risk budget" discipline from the doc.
 
+It then runs a **risk-parity optimizer** (`portfolio.optimize_risk_parity`):
+a fixed total risk budget (`portfolio_max_risk_pct`) is split *equally*
+across the tradeable signals, so every position contributes the same
+risk-at-stop. Because units = target-risk ÷ (entry − stop), a more volatile
+name automatically gets fewer units for the same dollar risk — i.e.
+inverse-volatility / equal-risk-contribution sizing — and the book never
+exceeds the budget however many signals fire. Each leg is reported as an
+explicit *“% of wallet”* allocation, and any single name is clipped to
+`max_name_pct` of equity so one low-vol idea can't dominate. This is the
+"portfolio optimizer" component a real quant stack is expected to have.
+
 ### Risk management
 
 - **Fixed-fractional sizing:** never risk more than `risk_per_trade_pct`
@@ -376,7 +387,7 @@ quantaura/
   montecarlo.py    bootstrap robustness + P(TP before SL) + spread-reversion
   optimize.py      walk-forward parameter search (scored out-of-sample)
   smc.py           swing pivots, Fair Value Gaps, order blocks (structure)
-  portfolio.py     batch risk: total risk-at-stop, exposure, concentration
+  portfolio.py     batch risk + risk-parity optimizer (equal-risk weights)
   storage.py       SQLite persistence (signals + subscribers), dedup
   journal.py       resolve open signals to TP/SL, live track record
   manage.py        active management advice for open positions

@@ -337,6 +337,22 @@ def run_selftest() -> bool:
     ok &= _check("portfolio over-budget warning fires", len(summ.warnings) >= 1)
     ok &= _check("portfolio summary renders",
                  "Portfolio risk" in pf_mod.format_summary(summ, 10000))
+    # risk-parity optimizer: equal dollar risk per leg, total within budget
+    rp = [
+        Signal(symbol="A", asset_class=AssetClass.STOCK, strategy="x", side=Side.LONG,
+               entry=100, stop=90, target=120, risk_per_unit=10, reward_per_unit=20,
+               rr_ratio=2.0),
+        Signal(symbol="B", asset_class=AssetClass.CRYPTO, strategy="y", side=Side.SHORT,
+               entry=50, stop=55, target=40, risk_per_unit=5, reward_per_unit=10,
+               rr_ratio=2.0),
+    ]
+    allocs = pf_mod.optimize_risk_parity(rp, equity=10000, risk_budget_pct=6.0,
+                                         max_name_pct=100.0)
+    equal_risk = (len(allocs) == 2
+                  and abs(allocs[0].risk_amount - allocs[1].risk_amount) < 1e-6)
+    in_budget = sum(a.risk_amount for a in allocs) <= 600 + 1e-6
+    ok &= _check("risk-parity equalises risk within budget", equal_risk and in_budget,
+                 f"risk/leg=${allocs[0].risk_amount:.0f}, Σ=${sum(a.risk_amount for a in allocs):.0f}")
 
     # 13) structure-aware targets ----------------------------------------
     print("\n[13] Structure-aware targets")

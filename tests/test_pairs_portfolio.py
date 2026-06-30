@@ -76,3 +76,66 @@ def test_portfolio_format_and_empty():
     sigs = [_sig("A", Side.LONG, AssetClass.STOCK, 100, 5000)]
     text = pf.format_summary(pf.summarize(sigs, 10000), 10000)
     assert "Portfolio risk" in text and "Risk at stop" in text
+
+
+# ---------------- risk-parity optimizer ----------------
+def _psig(symbol, entry, stop, side=Side.LONG, ac=AssetClass.STOCK, forecast=False):
+    return Signal(symbol=symbol, asset_class=ac, strategy="x", side=side,
+                  entry=entry, stop=stop, target=entry + 2 * (entry - stop),
+                  risk_per_unit=abs(entry - stop), reward_per_unit=2 * abs(entry - stop),
+                  rr_ratio=2.0, forecast_only=forecast)
+
+
+def test_risk_parity_equalises_risk_and_respects_budget():
+    # three different-volatility names; budget 6% of 10k = $600 -> $200 each
+    sigs = [_psig("A", 100, 95),    # risk/unit 5
+            _psig("B", 50, 49),     # risk/unit 1
+            _psig("C", 200, 180)]   # risk/unit 20
+    allocs = pf.optimize_risk_parity(sigs, equity=10000, risk_budget_pct=6.0,
+                                     max_name_pct=100.0)
+    assert len(allocs) == 3
+    # equal dollar risk on every leg
+    for a in allocs:
+        assert abs(a.risk_amount - 200.0) < 1e-6
+    # units scale inversely with volatility: A=40, B=200, C=10
+    by = {a.symbol: a for a in allocs}
+    assert abs(by["A"].units - 40.0) < 1e-6
+    assert abs(by["B"].units - 200.0) < 1e-6
+    assert abs(by["C"].units - 10.0) < 1e-6
+    # total risk stays within the budget
+    assert abs(sum(a.risk_amount for a in allocs) - 600.0) < 1e-6
+
+
+def test_risk_parity_single_name_cap():
+    # B is very low-vol -> would take 200*50=$10k notional (100% of wallet);
+    # cap at 25% -> $2500, and its risk drops below the equal target.
+    sigs = [_psig("A", 100, 95), _psig("B", 50, 49.5)]
+    allocs = pf.optimize_risk_parity(sigs, equity=10000, risk_budget_pct=6.0,
+                                     max_name_pct=25.0)
+    b = next(a for a in allocs if a.symbol == "B")
+    assert b.capped is True
+    assert b.notional <= 2500 + 1e-6
+    assert b.risk_amount < 300.0          # below the uncapped equal target
+
+
+def test_risk_parity_excludes_forecasts():
+    # high-vol name so the full $600 budget fits under the notional cap
+    sigs = [_psig("A", 100, 80),
+            _psig("IRGOLD", 100, 105, side=Side.SHORT,
+                  ac=AssetClass.IRAN, forecast=True)]
+    allocs = pf.optimize_risk_parity(sigs, equity=10000, risk_budget_pct=6.0,
+                                     max_name_pct=100.0)
+    assert [a.symbol for a in allocs] == ["A"]      # forecast excluded
+    # the single tradeable name now gets the whole budget
+    assert abs(allocs[0].risk_amount - 600.0) < 1e-6 and not allocs[0].capped
+
+
+def test_risk_parity_zero_equity_safe():
+    sigs = [_psig("A", 100, 95)]
+    assert pf.optimize_risk_parity(sigs, equity=0) == []
+
+
+def test_allocation_shows_in_summary_text():
+    sigs = [_psig("A", 100, 95, Side.LONG), _psig("B", 50, 49, Side.SHORT)]
+    text = pf.format_summary(pf.summarize(sigs, 10000), 10000)
+    assert "Risk-parity allocation" in text and "% of wallet" in text

@@ -242,7 +242,8 @@ risk:
   kelly_fraction: 0.5         # use HALF-Kelly on the backtested edge (safer)
   max_kelly_pct: 5.0          # never size above 5% of equity on one idea
   max_open_per_class: 5       # concurrency cap suggestion per asset class
-  portfolio_max_risk_pct: 6.0 # warn if total risk-at-stop across signals exceeds this
+  portfolio_max_risk_pct: 6.0 # total risk-at-stop budget shared across signals
+  max_name_pct: 25.0          # risk-parity: cap one position's notional at this % of wallet
   # --- Trailing stop (Chandelier exit) ---
   # When enabled, the backtester trails the stop at (extreme - mult·ATR)
   # so winners can run past the fixed target. Each signal also carries a

@@ -177,7 +177,8 @@ async def _publish(target, context, signals, record: bool = True,
         summary = portfolio_mod.summarize(
             new, settings.account_equity,
             max_risk_pct=float(settings.risk.get("portfolio_max_risk_pct", 6.0)),
-            max_per_class=int(settings.risk.get("max_open_per_class", 5)))
+            max_per_class=int(settings.risk.get("max_open_per_class", 5)),
+            max_name_pct=float(settings.risk.get("max_name_pct", 25.0)))
         text = portfolio_mod.format_summary(summary, settings.account_equity)
         if text:
             await _reply(target, text)
@@ -415,7 +416,8 @@ async def _scheduled_scan(context: ContextTypes.DEFAULT_TYPE) -> None:
         portfolio_mod.summarize(
             new, settings.account_equity,
             max_risk_pct=float(settings.risk.get("portfolio_max_risk_pct", 6.0)),
-            max_per_class=int(settings.risk.get("max_open_per_class", 5))),
+            max_per_class=int(settings.risk.get("max_open_per_class", 5)),
+            max_name_pct=float(settings.risk.get("max_name_pct", 25.0))),
         settings.account_equity)
     for chat_id in recipients:
         await _broadcast(context.bot, chat_id, summary_text)
