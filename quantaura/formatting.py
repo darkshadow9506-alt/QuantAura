@@ -1,7 +1,7 @@
 """Human-readable rendering of Signal objects (Telegram / CLI)."""
 from __future__ import annotations
 
-from .data import IRAN_NAMES
+from .data import IRAN_NAMES, is_global_tradeable
 from .models import AssetClass, PairSignal, Side, Signal
 
 _DISCLAIMER = (
@@ -29,6 +29,13 @@ def _bar(conf: float, width: int = 10) -> str:
 def _label(sig: Signal) -> str:
     name = IRAN_NAMES.get(sig.symbol, sig.symbol)
     return f"{sig.symbol} — {name}" if name != sig.symbol else sig.symbol
+
+
+def _class_label(sig: Signal) -> str:
+    """Displayed asset class — global tgju symbols aren't 'iran'."""
+    if sig.asset_class is AssetClass.IRAN and is_global_tradeable(sig.symbol):
+        return "global"
+    return sig.asset_class.value
 
 
 def _format_forecast(sig: Signal, md: bool) -> str:
@@ -72,7 +79,7 @@ def format_signal(sig: Signal, md: bool = True) -> str:
     bt = sig.backtest
     lines = []
     label = _label(sig)
-    title = f"{side_icon}  *{label}*  ({sig.asset_class.value})"
+    title = f"{side_icon}  *{label}*  ({_class_label(sig)})"
     lines.append(title)
     lines.append(f"Strategy: `{sig.strategy}`  |  Regime: {sig.regime}  |  TF: {sig.timeframe}")
     lines.append("")
@@ -140,11 +147,20 @@ def format_signal(sig: Signal, md: bool = True) -> str:
     lines.append(f"💡 {rationale.strip()}")
     if struct.strip():
         lines.append(f"🧱 Structure: {struct.strip()}")
+    else:
+        # no qualifying support/resistance in range → the target is a deliberate
+        # reward:risk floor, not a random number. Say so, so it's transparent.
+        lines.append(f"📐 Target = {sig.rr_ratio:g}R reward:risk (no structural level "
+                     f"in range — a mechanical floor; the stop stays structural).")
     if sig.management:
         lines.append(f"🧭 {sig.management}")
     if sig.asset_class is AssetClass.IRAN:
-        lines.append("🇮🇷 Tehran free-market price (tgju.org). Heavily policy/news-driven "
-                     "and hard to short — treat as educational only.")
+        if is_global_tradeable(sig.symbol):
+            lines.append("🌍 Global USD spot price (via tgju.org) — a normal, "
+                         "tradeable market you can go long or short.")
+        else:
+            lines.append("🇮🇷 Tehran free-market price (tgju.org). Heavily policy/news-driven "
+                         "and hard to short — treat as educational only.")
     lines.append("")
     lines.append(_DISCLAIMER)
 

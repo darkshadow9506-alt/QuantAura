@@ -243,10 +243,13 @@ def scan_symbol(
         plan = strat.evaluate(prepared, len(prepared) - 1)
         if plan is None or not plan.valid():
             continue
-        # Iranian gold/USD shorts: retail usually can't short them, so by
-        # default publish them as a non-tradeable "downside forecast".
+        # Iranian *rial-denominated local* shorts: retail usually can't short
+        # them, so by default publish those as a non-tradeable "downside
+        # forecast". Global USD markets that merely come from tgju (e.g. the
+        # gold ounce = XAU/USD) are normally shortable and stay tradeable.
         forecast_only = False
-        if asset_class is AssetClass.IRAN and plan.side is Side.SHORT:
+        if (asset_class is AssetClass.IRAN and plan.side is Side.SHORT
+                and not data_mod.is_global_tradeable(symbol)):
             mode = settings.section("iran").get("short_mode", "forecast")
             if mode == "off":
                 continue

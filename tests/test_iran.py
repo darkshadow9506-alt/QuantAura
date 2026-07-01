@@ -67,6 +67,41 @@ def test_iran_shorts_are_forecasts(monkeypatch):
             assert not s.forecast_only
 
 
+def test_global_gold_short_is_tradeable(monkeypatch):
+    # 'ons' is the GLOBAL gold ounce (USD) — shortable via normal brokers, so a
+    # short must NOT be a forecast even though it is sourced from tgju.
+    from quantaura import engine
+    settings = Settings.load()
+
+    def _down(*a, **k):
+        n = 320
+        close = np.linspace(2200, 1900, n)
+        idx = pd.date_range("2022-01-01", periods=n, freq="B")
+        return pd.DataFrame({"open": np.concatenate([[close[0]], close[:-1]]),
+                             "high": close + 3, "low": close - 3, "close": close,
+                             "volume": np.zeros(n)}, index=idx)
+    monkeypatch.setattr(engine.data_mod, "get_ohlcv", _down)
+    sigs = engine.scan_symbol("ons", AssetClass.IRAN, settings, publish_only=False)
+    shorts = [s for s in sigs if s.side is Side.SHORT]
+    assert shorts, "expected a short setup on the falling series"
+    for s in shorts:
+        assert not s.forecast_only            # global gold is tradeable both ways
+
+
+def test_global_gold_label_and_disclaimer():
+    from quantaura.formatting import format_signal
+    from quantaura.data import is_global_tradeable
+    assert is_global_tradeable("ons") and not is_global_tradeable("sekee")
+    s = Signal(symbol="ons", asset_class=AssetClass.IRAN, strategy="dual_thrust",
+               side=Side.SHORT, entry=4000, stop=4100, target=3800,
+               risk_per_unit=100, reward_per_unit=200, rr_ratio=2.0,
+               forecast_only=False, confidence=0.7)
+    txt = format_signal(s, md=False)
+    assert "(global)" in txt                  # not "(iran)"
+    assert "Global USD spot" in txt           # not the Tehran-only disclaimer
+    assert "Tehran free-market" not in txt
+
+
 def test_iran_short_mode_off(monkeypatch):
     from quantaura import engine
     settings = Settings.load()

@@ -135,6 +135,15 @@ IRAN_NAMES = {
     "ons": "Gold ounce — global (USD)",
 }
 
+# tgju symbols that are actually GLOBAL and USD-priced: retail CAN trade them
+# long OR short via ordinary brokers (e.g. XAU/USD), unlike the rial-denominated
+# local markets. These must NOT be treated as non-shortable "Iran forecasts".
+IRAN_GLOBAL_TRADEABLE = {"ons"}
+
+
+def is_global_tradeable(symbol: str) -> bool:
+    return symbol in IRAN_GLOBAL_TRADEABLE
+
 _TGJU_URL = "https://api.tgju.org/v1/market/indicator/summary-table-data/{symbol}"
 
 
