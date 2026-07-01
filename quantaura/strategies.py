@@ -189,6 +189,13 @@ def _stop_and_target(df: pd.DataFrame, i: int, side: Side, entry: float, atr: fl
     if risk <= 0:
         stop, stop_lvl, risk = base_stop, None, abs(entry - base_stop)
     target = entry + min_target_R * risk if side is Side.LONG else entry - min_target_R * risk
+    # HARD CAP on how far the mechanical target may sit from entry: on a daily
+    # timeframe a wide ATR can make a 2R target absurdly distant (the "Long BTC
+    # to 180k" problem). Cap it so every target is realistically reachable.
+    max_t_atr = float(scfg.get("max_target_atr", 0) or 0) * atr
+    if max_t_atr > 0:
+        target = (min(target, entry + max_t_atr) if side is Side.LONG
+                  else max(target, entry - max_t_atr))
     target, tgt_lvl = _refine_target(df, i, side, entry, target, atr, risk, scfg)
     note = _structure_note(side, stop_lvl, tgt_lvl)
     return stop, target, note

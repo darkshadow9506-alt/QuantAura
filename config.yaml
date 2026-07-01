@@ -80,6 +80,8 @@ structure:
   buffer_atr: 0.25        # place stop/target this far (in ATR) beyond/before the level
   lookback: 120           # only consider levels within this many bars
   min_rr: 0.8             # if refining the target drops reward:risk below this, keep R-multiple
+  max_target_atr: 6.0     # HARD CAP: target can never sit more than this many ATR from entry
+                          # (stops "Long BTC to 180k" — an unreachably far mechanical target)
   # Structural stop: place the stop just beyond the nearest protective level
   # (swing high/low, FVG edge, or order block) instead of a blind ATR stop.
   # The structural risk is capped to [stop_min_atr, stop_max_atr] x ATR.

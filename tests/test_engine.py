@@ -79,6 +79,40 @@ def test_scan_symbol_short_history_returns_empty(monkeypatch, settings):
     assert out == []
 
 
+def test_one_card_per_side(monkeypatch, settings):
+    # a clean uptrend with a last-bar breakout fires several trending
+    # strategies; the engine must collapse them to ONE long card.
+    n = 320
+    close = np.linspace(100, 175, n) + np.sin(np.linspace(0, 9, n)) * 1.2
+    close[-1] = close[-2] + 3.5
+    idx = pd.date_range("2022-01-01", periods=n, freq="B")
+    df = pd.DataFrame({"open": np.concatenate([[close[0]], close[:-1]]),
+                       "high": close + 0.8, "low": close - 0.8, "close": close,
+                       "volume": np.full(n, 2e6)}, index=idx)
+    monkeypatch.setattr(engine.data_mod, "get_ohlcv", lambda *a, **k: df)
+    sigs = engine.scan_symbol("FAKE", AssetClass.STOCK, settings, publish_only=False)
+    longs = [s for s in sigs if s.side is Side.LONG]
+    assert len(longs) == 1                       # collapsed, not 2-3 cards
+    s = longs[0]
+    assert s.confluence >= 2                      # kept the confluence count
+    assert "also confirmed by" in s.rationale     # names the agreeing strategies
+
+
+def test_target_distance_capped(monkeypatch, settings):
+    # verify the structure config carries the hard target cap and it binds
+    from quantaura.strategies import _stop_and_target
+    import pandas as _pd
+    scfg = dict(settings.section("structure"))
+    scfg["max_target_atr"] = 3.0                  # tight cap for the test
+    nn = 130
+    d = _pd.DataFrame({c: [np.nan] * nn for c in
+                       ("piv_low", "piv_high", "fvg_sup", "fvg_res", "ob_sup", "ob_res")})
+    atr, entry = 1000.0, 50000.0
+    _, target, _ = _stop_and_target(d, 100, Side.LONG, entry, atr, 2.5, 5.0, scfg)
+    # a 5R target on a 2.5-ATR stop would be 12.5 ATR away; the cap forbids it
+    assert target - entry <= 3.0 * atr + 1e-6
+
+
 def test_publish_filter_drops_low_confidence(monkeypatch, settings):
     df = _rising()
     monkeypatch.setattr(engine.data_mod, "get_ohlcv", lambda *a, **k: df)

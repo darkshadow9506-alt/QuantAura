@@ -289,7 +289,29 @@ def scan_symbol(
     # confluence: when several strategies agree on the same direction,
     # raise confidence (independent confirmations of the same idea).
     _apply_confluence(out)
+    # one card per symbol+side: several strategies firing on the same coin
+    # should not spam 2-3 separate cards — keep the strongest (it already
+    # carries the confluence count) and list which strategies agreed.
+    out = _collapse_per_side(out)
     return _publish_filter(out, settings, publish_only)
+
+
+def _collapse_per_side(signals: list[Signal]) -> list[Signal]:
+    """Keep only the highest-confidence signal for each side (same symbol)."""
+    best: dict[Side, Signal] = {}
+    agree: dict[Side, list[str]] = {}
+    for s in signals:
+        agree.setdefault(s.side, []).append(s.strategy)
+        if s.side not in best or s.confidence > best[s.side].confidence:
+            best[s.side] = s
+    for side, s in best.items():
+        others = sorted(set(x for x in agree[side] if x != s.strategy))
+        if others:
+            # keep the "🧱 Structure:" note as the trailing segment
+            base, sep, struct = s.rationale.partition("🧱 Structure:")
+            confirm = f" (also confirmed by {', '.join(others)})."
+            s.rationale = base.rstrip() + confirm + (f" {sep}{struct}" if sep else "")
+    return list(best.values())
 
 
 def _apply_confluence(signals: list[Signal]) -> None:
